@@ -15,6 +15,7 @@ import numpy as np
 from PIL import Image
 import time
 import logging
+import pandas as pd  # Add this import
 # import wandb
 from tqdm import tqdm
 import argparse
@@ -27,7 +28,6 @@ from utils.utils import InputPadder
 import warp_utils
 import ipdb
 import torch.nn.functional as F
-
 
 def viz(img, flo, output_dir, img_count):
     img = img[0].permute(1, 2, 0).cpu().numpy()
@@ -243,21 +243,22 @@ if __name__ == '__main__':
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
     parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlation implementation')
+    parser.add_argument('--output_path', help='output directory')
+
     args = parser.parse_args()
 
     dir_videos = args.dir_videos
     metric = args.metric
+    out_path = args.output_path + '/{}.tsv'.format(metric)
 
-    dir_prompts =  '../../prompts/'
    
     video_paths = [os.path.join(dir_videos, x) for x in os.listdir(dir_videos)]
-    prompt_paths = [os.path.join(dir_prompts, os.path.splitext(os.path.basename(x))[0]+'.txt') for x in video_paths]
 
      # Create the directory if it doesn't exist
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     os.makedirs(f"../../results", exist_ok=True)
     # Set up logging
-    log_file_path = f"../../results/{metric}_record.txt"
+    log_file_path = f"../../results/{metric}_log.txt"
     # Delete the log file if it exists
     if os.path.exists(log_file_path):
         os.remove(log_file_path)
@@ -265,7 +266,7 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     # File handler for writing logs to a file
-    file_handler = logging.FileHandler(filename=f"../../results/{metric}_record.txt")
+    file_handler = logging.FileHandler(filename=log_file_path)
     file_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
     logger.addHandler(file_handler)
     # Stream handler for displaying logs in the terminal
@@ -280,35 +281,6 @@ if __name__ == '__main__':
     
     import json
     # Load the JSON data from the file
-    with open("../../metadata.json", "r") as infile:
-        data = json.load(infile)
-    # Extract the dictionaries
-    face_vid = {}
-    text_vid = {}
-    color_vid = {}
-    count_vid = {}
-    amp_vid = {}
-    action_vid = {}
-    for item_key, item_value in data.items():
-        attributes = item_value["attributes"]
-        face = attributes.get("face", "")
-        text = attributes.get("text", "")
-        color = attributes.get("color", "")
-        count = attributes.get("count", "")
-        amp = attributes.get("amp", "")
-        action = attributes.get("action", "")
-        if face:
-            face_vid[item_key] = face
-        if text:
-            text_vid[item_key] = text
-        if color:
-            color_vid[item_key] = color
-        if count:
-            count_vid[item_key] = count
-        if amp:
-            amp_vid[item_key] = amp
-        if action:
-            action_vid[item_key] = action
 
     if metric == 'action_recognition_score':
         # action_model 
@@ -353,20 +325,20 @@ if __name__ == '__main__':
     test_num = 10
     test_num = len(video_paths)
     count = 0
+    results_list = []  # Create a list to store results
     for i in tqdm(range(len(video_paths))):
         video_path = video_paths[i]
-        prompt_path = prompt_paths[i]
         if count == test_num:
             break
         else:
-            text = read_text_file(prompt_path)
             if metric == 'motion_ac_score':
                 # get the videos' basenames list action_vid  for recognition
                 basename = os.path.basename(video_path)[:4]
-                if  basename in amp_vid.keys():
-                    score = calculate_motion_ac_score(video_path, amp_vid[os.path.basename(video_path)[:4]], model)
-                else:
-                    score = None
+                # if  basename in amp_vid.keys():
+                #     score = calculate_motion_ac_score(video_path, amp_vid[os.path.basename(video_path)[:4]], model)
+                # else:
+                #     score = None
+                score = None
             elif metric == 'flow_score':
                 # get the videos' basenames list action_vid  for recognition
                 # basename = os.path.basename(video_path)[:4]
@@ -386,7 +358,11 @@ if __name__ == '__main__':
                 #     f"Current {metric}": score,
                 #     f"Average {metric}": average_score,
                 # })
+                results_list.append({
+                    "video_path": video_path.split("/")[-1],
+                    "{}_score".format(metric): score,
+                })
             
-    # Calculate the average SD score across all video-text pairs
-    average_score = sum(scores) / len(scores)
-    logger.info(f"Final average {metric}: {average_score}, Total videos: {len(scores)}")
+    # Create a DataFrame and write to a TSV file
+    df = pd.DataFrame(results_list)
+    df.to_csv(args.output_path, sep='\t', index=False)

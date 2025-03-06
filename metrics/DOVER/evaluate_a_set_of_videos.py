@@ -9,6 +9,8 @@ import numpy as np
 import yaml
 from tqdm import tqdm
 import ipdb
+import pandas as pd  # Add this import
+
 
 from dover.datasets import (
     UnifiedFrameSampler,
@@ -51,10 +53,12 @@ if __name__ == "__main__":
     parser.add_argument("--dir_videos", type=str, default='', help="Specify the path of generated videos")    
     parser.add_argument("-d", "--device", type=str, default="cuda", help="the running device")
     parser.add_argument("--task", type=str, default=None, help="results saving path")
+    parser.add_argument("--output_path", type=str, default='../../results/', help="output_path")
     args = parser.parse_args()
+    print(args)
 
     dir_videos = args.dir_videos
-    out_path = f'../../results/dover.csv'
+    out_path = args.output_path + '/dover.tsv'
     
     with open(args.opt, "r") as f:
         opt = yaml.safe_load(f)
@@ -71,9 +75,7 @@ if __name__ == "__main__":
     # Delete the log file if it exists
     if os.path.exists(out_path):
         os.remove(out_path)
-    with open(out_path, "w") as w:
-        w.write(f"path, aesthetic score, technical score, overall/final score\n")
-
+    results_list = []
     dopt = opt["data"]["val-l1080p"]["args"]
 
     dopt["anno_file"] = None
@@ -124,20 +126,13 @@ if __name__ == "__main__":
 
         rescaled_results = fuse_results(results)
 
-        with open("zero_shot_res_sensehdr.txt","a") as wf:
-            wf.write(f'{data["name"][0].split("/")[-1]},{rescaled_results["aesthetic"]*100:4f}, {rescaled_results["technical"]*100:4f},{rescaled_results["overall"]*100:4f}\n')
+        results_list.append({
+            "video_path": data["name"][0].split("/")[-1],
+            "aesthetic_score": rescaled_results["aesthetic"] * 100,
+            "technical_score": rescaled_results["technical"] * 100,
+            "dover_overall_score": rescaled_results["overall"] * 100
+        })
 
-        with open(out_path, "a") as w:
-            w.write(
-                f'{data["name"][0].split("/")[-1].split(".")[0]}, {rescaled_results["aesthetic"]*100:4f}, {rescaled_results["technical"]*100:4f},{rescaled_results["overall"]*100:4f}\n'
-            )
-        aesthetic_sum+=rescaled_results["aesthetic"]*100
-        technical_sum+=rescaled_results["technical"]*100
-        overall_sum+=rescaled_results["overall"]*100
 
-    
-    with open(out_path, "a") as w:
-            w.write(
-                f'Avg. scores: {aesthetic_sum/len(dataloader)}, {technical_sum/len(dataloader)},{overall_sum/len(dataloader)}\n'
-            )
-
+    df = pd.DataFrame(results_list)
+    df.to_csv(out_path, sep='\t', index=False)

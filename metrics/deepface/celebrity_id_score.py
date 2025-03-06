@@ -72,10 +72,10 @@ if __name__ == '__main__':
     metric = args.metric
 
     dir_path_face = './celebrities/'
-    dir_prompts =  '../../prompts/'
+    #dir_prompts =  '../../prompts/'
    
     video_paths = [os.path.join(dir_videos, x) for x in os.listdir(dir_videos)]
-    prompt_paths = [os.path.join(dir_prompts, os.path.splitext(os.path.basename(x))[0]+'.txt') for x in video_paths]
+    #prompt_paths = [os.path.join(dir_prompts, os.path.splitext(os.path.basename(x))[0]+'.txt') for x in video_paths]
 
     # Load pretrained models
     device =  "cpu"
@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
     for i in tqdm(range(len(video_paths))):
         video_path = video_paths[i]
-        prompt_path = prompt_paths[i]
+        #prompt_path = prompt_paths[i]
         basename = os.path.basename(video_path)[:4]
         if  basename in face_vid.keys():
             score = calculate_celebrity_id_score(video_path, image_paths[basename])
@@ -151,7 +151,7 @@ if __name__ == '__main__':
         if score is not None:
             scores.append(score)
             average_score = sum(scores) / len(scores)
-            logging.info(f"Vid: {os.path.basename(prompt_paths[i])},  Current {metric}: {score}, Current avg. {metric}: {average_score}.")
+            logging.info(f"Vid: {os.path.basename(video_path)},  Current {metric}: {score}, Current avg. {metric}: {average_score}.")
 
             
     # Calculate the average SD score across all video-text pairs
