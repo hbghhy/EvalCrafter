@@ -91,7 +91,7 @@ def calculate_flow_score(video_path, model):
 
     return mean_optical_flow_video
 
-def calculate_motion_ac_score(video_path, amp, model):
+def calculate_motion_ac_score(video_path, model):
     
     # Create an output directoryﬁ
     # output_dir = "output"
@@ -136,17 +136,7 @@ def calculate_motion_ac_score(video_path, amp, model):
     # ipdb.set_trace()
     mean_optical_flow_video = np.mean(optical_flows)
     print(f"Mean optical flow for the video: {mean_optical_flow_video}")
-    if np.abs(mean_optical_flow_video) > 5:
-        amp_pred = 'large'
-    else:
-        amp_pred = 'slow'
-
-    if amp_pred == amp: # may use a distance to 3?
-        amp_recognition_score = 1
-    else:
-        amp_recognition_score = 0 
-
-    return amp_recognition_score
+    return mean_optical_flow_video
 
 # Adapted from https://github.com/phoenix104104/fast_blind_video_consistency
 def compute_video_warping_error(video_path, model):
@@ -226,7 +216,7 @@ def compute_video_warping_error(video_path, model):
 
     warping_error = err / (len(extracted_frames) - 1)
 
-    return warping_error
+    return warping_error.item()
 
 
 def read_text_file(file_path):
@@ -249,6 +239,8 @@ if __name__ == '__main__':
 
     dir_videos = args.dir_videos
     metric = args.metric
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)    
     out_path = args.output_path + '/{}.tsv'.format(metric)
 
    
@@ -334,6 +326,7 @@ if __name__ == '__main__':
             if metric == 'motion_ac_score':
                 # get the videos' basenames list action_vid  for recognition
                 basename = os.path.basename(video_path)[:4]
+                score = calculate_motion_ac_score(video_path, model)
                 # if  basename in amp_vid.keys():
                 #     score = calculate_motion_ac_score(video_path, amp_vid[os.path.basename(video_path)[:4]], model)
                 # else:
@@ -365,4 +358,4 @@ if __name__ == '__main__':
             
     # Create a DataFrame and write to a TSV file
     df = pd.DataFrame(results_list)
-    df.to_csv(args.output_path, sep='\t', index=False)
+    df.to_csv(out_path, sep='\t', index=False)

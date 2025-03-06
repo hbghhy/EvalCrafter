@@ -4,6 +4,12 @@ prompt_dir=$3
 eval_result_dir=$4
 final_output=$5
 
+echo "EC_path: $EC_path"
+echo "dir_videos: $dir_videos"
+echo "prompt_dir: $prompt_dir"
+echo "eval_result_dir: $eval_result_dir"
+echo "final_output: $final_output"
+
 # [need for speicific platform] pip install spatial_correlation_sampler
 pip install spatial_correlation_sampler==0.4.0
 
@@ -66,9 +72,9 @@ cd ./metrics/RAFT
 python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'flow_score' --output_path $eval_result_dir
 
 # Motion AC-Score
-# cd $EC_path
-# cd ./metrics/RAFT
-# python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'motion_ac_score'
+cd $EC_path
+cd ./metrics/RAFT
+python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'motion_ac_score'
 
 # Warping Error
 cd $EC_path

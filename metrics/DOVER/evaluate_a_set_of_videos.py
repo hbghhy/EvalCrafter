@@ -58,6 +58,8 @@ if __name__ == "__main__":
     print(args)
 
     dir_videos = args.dir_videos
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
     out_path = args.output_path + '/dover.tsv'
     
     with open(args.opt, "r") as f:
@@ -75,6 +77,7 @@ if __name__ == "__main__":
     # Delete the log file if it exists
     if os.path.exists(out_path):
         os.remove(out_path)
+
     results_list = []
     dopt = opt["data"]["val-l1080p"]["args"]
 
