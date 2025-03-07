@@ -35,24 +35,24 @@ python3 evaluate_a_set_of_videos.py --dir_videos $dir_videos --output_path $eval
 
 # --
 # CLIP-Score 
-# cd $EC_path
-# cd ./metrics/Scores_with_CLIP 
-# python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'clip_score'
+cd $EC_path
+cd ./metrics/Scores_with_CLIP 
+python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'clip_score' --output_path $eval_result_dir
 
 # # Face Consistency 
-# cd $EC_path
-# cd ./metrics/Scores_with_CLIP 
-# python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'face_consistency_score'
+cd $EC_path
+cd ./metrics/Scores_with_CLIP 
+python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'face_consistency_score' --output_path $eval_result_dir
 
 # # SD-Score 
-# cd $EC_path
-# cd ./metrics/Scores_with_CLIP 
-# python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'sd_score'
+cd $EC_path
+cd ./metrics/Scores_with_CLIP 
+python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'sd_score' --output_path $eval_result_dir
 
 # # BLIP-BLUE 
-# cd $EC_path
-# cd ./metrics/Scores_with_CLIP 
-# python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'blip_bleu'
+cd $EC_path
+cd ./metrics/Scores_with_CLIP 
+python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'blip_bleu' --output_path $eval_result_dir
 
 # # CLIP-Temp 
 # cd $EC_path
@@ -60,10 +60,10 @@ python3 evaluate_a_set_of_videos.py --dir_videos $dir_videos --output_path $eval
 # python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'clip_temp_score'
 # --
 
-# # # Action Score
-# cd $EC_path
-# cd ./metrics/mmaction2/demo
-# python3 action_score.py --dir_videos $dir_videos --metric 'action_score'
+# # Action Score
+cd $EC_path
+cd ./metrics/mmaction2/demo
+python3 action_score.py --dir_videos $dir_videos --metric 'action_score' --output_path $eval_result_dir
 
 
 # Flow-Score
@@ -72,9 +72,9 @@ cd ./metrics/RAFT
 python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'flow_score' --output_path $eval_result_dir
 
 # Motion AC-Score
-cd $EC_path
-cd ./metrics/RAFT
-python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'motion_ac_score'
+# cd $EC_path
+# cd ./metrics/RAFT
+# python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'motion_ac_score' --output_path $eval_result_dir
 
 # Warping Error
 cd $EC_path

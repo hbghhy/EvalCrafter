@@ -18,6 +18,7 @@ from transformers import AutoProcessor, Blip2ForConditionalGeneration
 import ipdb
 from pycocoevalcap.cider.cider import Cider
 from pycocoevalcap.bleu.bleu import Bleu
+import pandas as pd
 
 def calculate_clip_score(video_path, text, model, tokenizer):
     # Load the video
@@ -277,16 +278,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_videos", type=str, default='', help="Specify the path of generated videos")
     parser.add_argument("--metric", type=str, default='celebrity_id_score', help="Specify the metric to be used")
+
+    parser.add_argument('--output_path', help='output directory')
+    parser.add_argument('--prompt_file', help='prompt_file')
+
     args = parser.parse_args()
 
     dir_videos = args.dir_videos
     metric = args.metric
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)    
+    out_path = args.output_path + '/{}.tsv'.format(metric)
 
-    dir_prompts =  '../../prompts/'
    
     video_paths = [os.path.join(dir_videos, x) for x in os.listdir(dir_videos)]
-    prompt_paths = [os.path.join(dir_prompts, os.path.splitext(os.path.basename(x))[0]+'.txt') for x in video_paths]
-
+    prompts_df = pd.read_csv(args.prompt_file, sep='\t', names=['prompt_text', 'video_id', 'video_url'], lineterminator='\n')
      # Create the directory if it doesn't exist
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     os.makedirs(f"../../results", exist_ok=True)
@@ -313,53 +319,61 @@ if __name__ == '__main__':
 
     
     if metric == 'blip_bleu': 
-        blip2_processor = AutoProcessor.from_pretrained("../../checkpoints/blip2-opt-2.7b")
-        blip2_model = Blip2ForConditionalGeneration.from_pretrained("../../checkpoints/blip2-opt-2.7b", torch_dtype=torch.float16).to(device)
+        blip2_processor = AutoProcessor.from_pretrained("Salesforce/blip2-opt-2.7b", revision="51572668da0eb669e01a189dc22abe6088589a24")
+        blip2_model = Blip2ForConditionalGeneration.from_pretrained("Salesforce/blip2-opt-2.7b", torch_dtype=torch.float16, revision="51572668da0eb669e01a189dc22abe6088589a24").to(device)
     elif metric == 'sd_score':
-        clip_model = CLIPModel.from_pretrained("../../checkpoints/clip-vit-base-patch32").to(device)
-        clip_tokenizer = AutoTokenizer.from_pretrained("../../checkpoints/clip-vit-base-patch32")
-        output_dir = "/apdcephfs/share_1290939/raphaelliu/Vid_Eval/Video_Gen/prompt700-release/SDXL_Imgs"
+        clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+        clip_tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+        output_dir = "../../results/SDXL_Imgs"
         SD_image_path = os.path.join(output_dir, f"{os.path.basename(os.path.basename(video_paths[0]).split('.')[0])}_0.png")
         # if os.path.exists(SD_image_path):
         #     pipe = None
         # else:
         pipe = StableDiffusionXLPipeline.from_pretrained(
-            "../../checkpoints/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16)
+            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16)
         pipe = pipe.to(device)
     else:
-        clip_model = CLIPModel.from_pretrained("../../checkpoints/clip-vit-base-patch32").to(device)
-        clip_tokenizer = AutoTokenizer.from_pretrained("../../checkpoints/clip-vit-base-patch32")
+        clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+        clip_tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
     
     # Calculate SD scores for all video-text pairs
     scores = []
     
-    test_num = 10
-    test_num = len(video_paths)
+    results_list = []
     count = 0
     for i in tqdm(range(len(video_paths))):
         video_path = video_paths[i]
-        prompt_path = prompt_paths[i]
-        if count == test_num:
-            break
-        else:
-            text = read_text_file(prompt_path)
-            # ipdb.set_trace()
-            if metric == 'clip_score':
-                score = calculate_clip_score(video_path, text, clip_model, clip_tokenizer)
-            elif metric == 'blip_bleu': 
-                score = calculate_blip_bleu(video_path, text, blip2_model, blip2_processor)
-            elif metric == 'sd_score':
-                score = calculate_sd_score(video_path, text, pipe,clip_model)
-            elif metric == 'clip_temp_score':
-                score = calculate_clip_temp_score(video_path,clip_model)
-            elif metric == 'face_consistency_score':
-                score = calculate_face_consistency_score(video_path,clip_model)
-            count+=1
-            scores.append(score)
-            average_score = sum(scores) / len(scores)
-            # count+=1
-            logging.info(f"Vid: {os.path.basename(video_path)},  Current {metric}: {score}, Current avg. {metric}: {average_score},  ")
-            
-    # Calculate the average SD score across all video-text pairs
-    logging.info(f"Final average {metric}: {average_score}, Total videos: {len(scores)}")
+        video_id = os.path.splitext(os.path.basename(video_path))[0]
+        prompt_row = prompts_df[prompts_df['video_id'] == video_id]
 
+        
+        if prompt_row.empty:
+            logging.warning(f"No prompt found for video: {video_id}")
+            continue
+        
+        prompt_text = prompt_row['prompt_text'].values[0]
+        if count == 0:
+            print(f"Prompt: {prompt_text}")        
+        # ipdb.set_trace()
+        score = 0.0
+        if metric == 'clip_score':
+            score = calculate_clip_score(video_path, prompt_text, clip_model, clip_tokenizer)
+        elif metric == 'blip_bleu': 
+            score = calculate_blip_bleu(video_path, prompt_text, blip2_model, blip2_processor)
+        elif metric == 'sd_score':
+            score = calculate_sd_score(video_path, prompt_text, pipe,clip_model)
+        elif metric == 'clip_temp_score':
+            score = calculate_clip_temp_score(video_path,clip_model)
+        elif metric == 'face_consistency_score':
+            score = calculate_face_consistency_score(video_path,clip_model)
+        scores.append(score)
+        average_score = sum(scores) / len(scores)
+        count+=1
+        logging.info(f"Vid: {os.path.basename(video_path)},  Current {metric}: {score}, Current avg. {metric}: {average_score},  ")
+        results_list.append({
+            "video_path": video_path.split("/")[-1],
+            "{}_score".format(metric): score,
+        })
+    # Calculate the average SD score across all video-text pairs
+    df = pd.DataFrame(results_list)
+    df.to_csv(out_path, sep='\t', index=False)

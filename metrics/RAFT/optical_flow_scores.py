@@ -331,7 +331,6 @@ if __name__ == '__main__':
                 #     score = calculate_motion_ac_score(video_path, amp_vid[os.path.basename(video_path)[:4]], model)
                 # else:
                 #     score = None
-                score = None
             elif metric == 'flow_score':
                 # get the videos' basenames list action_vid  for recognition
                 # basename = os.path.basename(video_path)[:4]

@@ -66,12 +66,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_videos", type=str, default='', help="Specify the path of generated videos")
     parser.add_argument("--metric", type=str, default='celebrity_id_score', help="Specify the metric to be used")
+    parser.add_argument("--output_path", type=str, default='../../results/', help="output_path")
+
+
     args = parser.parse_args()
+    print(args)
 
     dir_videos = args.dir_videos
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
+    out_path = args.output_path + '/{}.tsv'.format(args.metric)
     metric = args.metric
 
-    dir_path_face = './celebrities/'
     #dir_prompts =  '../../prompts/'
    
     video_paths = [os.path.join(dir_videos, x) for x in os.listdir(dir_videos)]
@@ -79,44 +85,11 @@ if __name__ == '__main__':
 
     # Load pretrained models
     device =  "cpu"
-    import json
-    # Load the JSON data from the file
-    with open("../../metadata.json", "r") as infile:
-        data = json.load(infile)
-    # Extract the dictionaries
-    face_vid = {}
-    text_vid = {}
-    color_vid = {}
-    count_vid = {}
-    amp_vid = {}
-    action_vid = {}
-    for item_key, item_value in data.items():
-        attributes = item_value["attributes"]
-        face = attributes.get("face", "")
-        text = attributes.get("text", "")
-        color = attributes.get("color", "")
-        count = attributes.get("count", "")
-        amp = attributes.get("amp", "")
-        action = attributes.get("action", "")
-        if face:
-            face_vid[item_key] = face
-        if text:
-            text_vid[item_key] = text
-        if color:
-            color_vid[item_key] = color
-        if count:
-            count_vid[item_key] = count
-        if amp:
-            amp_vid[item_key] = amp
-        if action:
-            action_vid[item_key] = action
+
 
     image_paths = {}
 
-    for key, name in face_vid.items():
-        image_paths[key] = [f"{dir_path_face}{name.replace(' ', '_')}_{i}.jpg" for i in range(1, 4)]
-
-    
+ 
     # Calculate SD scores for all video-text pairs
     scores = []
     # Create the directory if it doesn't exist
@@ -139,22 +112,23 @@ if __name__ == '__main__':
     stream_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
     logger.addHandler(stream_handler)
 
+    results_list = []
+
     for i in tqdm(range(len(video_paths))):
         video_path = video_paths[i]
         #prompt_path = prompt_paths[i]
         basename = os.path.basename(video_path)[:4]
-        if  basename in face_vid.keys():
-            score = calculate_celebrity_id_score(video_path, image_paths[basename])
-        else:
-            score = None
+        score = calculate_celebrity_id_score(video_path, image_paths[basename])
 
-        if score is not None:
-            scores.append(score)
-            average_score = sum(scores) / len(scores)
-            logging.info(f"Vid: {os.path.basename(video_path)},  Current {metric}: {score}, Current avg. {metric}: {average_score}.")
+        results_list.append({
+            "video_path": video_path.split("/")[-1],
+            "celebrity_id_score": score,
+        })
+
+
+    df = pd.DataFrame(results_list)
+    df.to_csv(out_path, sep='\t', index=False)
 
             
     # Calculate the average SD score across all video-text pairs
-    average_score = sum(scores) / len(scores)
-    logging.info(f"Final average {metric}: {average_score}, Total videos: {len(scores)}")
 

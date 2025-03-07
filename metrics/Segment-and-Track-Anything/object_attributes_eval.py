@@ -16,6 +16,8 @@ import time
 import wandb
 import argparse
 import ipdb
+import pandas as pd
+from tqdm import tqdm
 
 def save_prediction(pred_mask,output_dir,file_name):
     save_mask = Image.fromarray(pred_mask.astype(np.uint8))
@@ -151,15 +153,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_videos", type=str, default='', help="Specify the path of generated videos")
     parser.add_argument("--metric", type=str, default='celebrity_id_score', help="Specify the metric to be used")
+    parser.add_argument('--output_path', help='output directory')
+    parser.add_argument('--prompt_file', help='prompt_file')
+
     args = parser.parse_args()
+    print(args)
 
     dir_videos = args.dir_videos
     metric = args.metric
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)    
+    out_path = args.output_path + '/{}.tsv'.format(metric)
 
-    dir_prompts =  '../../prompts/'
    
     video_paths = [os.path.join(dir_videos, x) for x in os.listdir(dir_videos)]
-    prompt_paths = [os.path.join(dir_prompts, os.path.splitext(os.path.basename(x))[0]+'.txt') for x in video_paths]
+    prompts_df = pd.read_csv(args.prompt_file, sep='\t', names=['prompt_text', 'video_id', 'video_url'], lineterminator='\n')
 
      # Create the directory if it doesn't exist
     timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -243,155 +251,79 @@ if __name__ == '__main__':
     vid_num = 0
     last_video_name = ' '
     start_time = time.time()  # Start the timer
-    logger.info(f"Total video num {len(prompt_paths)}")
 
-    import json
-    # Load the JSON data from the file
-    with open("../../metadata.json", "r") as infile:
-        data = json.load(infile)
-    # Extract the dictionaries
-    face_vid = {}
-    text_vid = {}
-    color_vid = {}
-    count_vid = {}
-    amp_vid = {}
-    action_vid = {}
-    for item_key, item_value in data.items():
-        attributes = item_value["attributes"]
-        face = attributes.get("face", "")
-        text = attributes.get("text", "")
-        color = attributes.get("color", "")
-        count = attributes.get("count", "")
-        amp = attributes.get("amp", "")
-        action = attributes.get("action", "")
-        if face:
-            face_vid[item_key] = face
-        if text:
-            text_vid[item_key] = text
-        if color:
-            color_vid[item_key] = color
-        if count:
-            count_vid[item_key] = count
-        if amp:
-            amp_vid[item_key] = amp
-        if action:
-            action_vid[item_key] = action
+    # import json
+    # # Load the JSON data from the file
+    # with open("../../metadata.json", "r") as infile:
+    #     data = json.load(infile)
+    # # Extract the dictionaries
+    # face_vid = {}
+    # text_vid = {}
+    # color_vid = {}
+    # count_vid = {}
+    # amp_vid = {}
+    # action_vid = {}
+    # for item_key, item_value in data.items():
+    #     attributes = item_value["attributes"]
+    #     face = attributes.get("face", "")
+    #     text = attributes.get("text", "")
+    #     color = attributes.get("color", "")
+    #     count = attributes.get("count", "")
+    #     amp = attributes.get("amp", "")
+    #     action = attributes.get("action", "")
+    #     if face:
+    #         face_vid[item_key] = face
+    #     if text:
+    #         text_vid[item_key] = text
+    #     if color:
+    #         color_vid[item_key] = color
+    #     if count:
+    #         count_vid[item_key] = count
+    #     if amp:
+    #         amp_vid[item_key] = amp
+    #     if action:
+    #         action_vid[item_key] = action
 
 
     scores = []
     count = 0
 
-    for i in range(len(prompt_paths)):
-        with open(prompt_paths[i], 'r', encoding='utf-8') as f:
-            data = f.read()
-        
-        if metric == 'detection_score':
-            for keyword in keywords:
-                num = len(re.findall(r'\b' + re.escape(keyword) + r'(s|es)?\b', data, re.IGNORECASE))      
-                if num > 0:
-                    video_name = os.path.splitext(os.path.basename(prompt_paths[i]))[0]
-                    if video_name != last_video_name:
-                        vid_num +=1
-                    last_video_name = video_name
-                    io_args = {
-                        'input_video': os.path.join(dir_videos, f'{video_name}.mp4'),
-                        'output_mask_dir': f'../../results/{metric+timestamp}/{keyword}/masks/{video_name}', # save pred masks
-                        'original_video': f'../../results/{metric+timestamp}/{keyword}/original_{video_name}.mp4', 
-                        'output_video': f'../../results/{metric+timestamp}/{keyword}/mask_{video_name}.mp4', # mask+frame vizualization, mp4 or avi, else the same as input video
-                        'output_gif': f'../../results/{metric+timestamp}/{keyword}/gif_{video_name}.gif', # mask visualization
-                    }
-                    grounding_caption = keyword
-                    _, pred_list, det_count_frames = video_detection(io_args, segtracker_args, sam_args, aot_args, grounding_caption, box_threshold, text_threshold, box_size_threshold, reset_image)
-                    
-                    # ipdb.set_trace()
-                    det_num += 1 
-                    det_frames = [] 
-                    for k in range(len(det_count_frames)):
-                        if det_count_frames[k] > 0:
-                            det_frames.append(1)
-                        else:
-                            det_frames.append(0)
-                    det_frames = np.array(det_frames)
-                    det_avg = np.sum(det_frames) / det_frames.shape[0]
-                    
-                    score = det_avg
-                    # ipdb.set_trace()
-                    scores.append(score)
-                    average_score = sum(scores) / len(scores)
-                    # count+=1
-                    logger.info(f"Vid: {video_name},  Current {metric}: {score}, Current avg. {metric}: {average_score},  ")
-                else:
-                    score = None
+    results_list = []
+    count = 0
+    for i in tqdm(range(len(video_paths))):
+        video_path = video_paths[i]
+        video_id = os.path.splitext(os.path.basename(video_path))[0]
+        prompt_row = prompts_df[prompts_df['video_id'] == video_id]
+        if prompt_row.empty:
+            logging.warning(f"No prompt found for video: {video_id}")
+            continue
+        score = None
+        if metric == 'count_score':
+            video_name = video_id
 
-        elif metric == 'color_score':
-            video_name = os.path.splitext(os.path.basename(prompt_paths[i]))[0]
-            if  video_name in color_vid.keys():
-                grounding_caption = ''
-                gt_color = color_vid[video_name].split()[0]
-                for j in range(len(color_vid[video_name].split())-1):
-                    grounding_caption += (color_vid[video_name].split()[j+1] + ' ')
-                grounding_caption = grounding_caption[:-1]
-                keyword = grounding_caption
+            
+            io_args = {
+            'input_video': os.path.join(dir_videos, f'{video_name}.mp4'),
+            'output_mask_dir': f'../../results/{metric+timestamp}/masks/{video_name}', # save pred masks
+            'original_video': f'../../results/{metric+timestamp}/original_{video_name}.mp4', 
+            'output_video': f'../../results/{metric+timestamp}/mask_{video_name}.mp4', # mask+frame vizualization, mp4 or avi, else the same as input video
+            'output_gif': f'../../results/{metric+timestamp}/gif_{video_name}.gif', # mask visualization
+        }
+            # path = create_directories(io_args['output_mask_dir'])
 
-                io_args = {
-                'input_video': os.path.join(dir_videos, f'{video_name}.mp4'),
-                'output_mask_dir': f'../../results/{metric+timestamp}/{keyword}/masks/{video_name}', # save pred masks
-                'original_video': f'../../results/{metric+timestamp}/{keyword}/original_{video_name}.mp4', 
-                'output_video': f'../../results/{metric+timestamp}/{keyword}/mask_{video_name}.mp4', # mask+frame vizualization, mp4 or avi, else the same as input video
-                'output_gif': f'../../results/{metric+timestamp}/{keyword}/gif_{video_name}.gif', # mask visualization
-            }
-                # path = create_directories(io_args['output_mask_dir'])
-                frames, pred_list, det_count_frames = video_detection(io_args, segtracker_args, sam_args, aot_args, grounding_caption, box_threshold, text_threshold, box_size_threshold, reset_image)
-                frames_colors = []
-                for k in range(len(frames)):
-                    hsv_frame = cv2.cvtColor(frames[k], cv2.COLOR_RGB2HSV)
-                    hsv_frame = hsv_frame[:, :, 0]
-                    hsv_frame_masked = np.multiply(hsv_frame, pred_list[k])
-                    avg_hue = hsv_frame_masked.sum() / np.count_nonzero(hsv_frame_masked)  # average hue component
-                    detected_color = detect_color_hue_based(avg_hue)
-                    if detected_color == gt_color:
-                        frames_colors.append(1)
-                    else:
-                        frames_colors.append(0)
-                frames_colors = np.array(frames_colors)
-                frames_color = np.sum(frames_colors) / frames_colors.shape[0]
-                # ipdb.set_trace()
-                score = frames_color
-            else:
-                score = None
-        
-        elif metric == 'count_score':
-            video_name = os.path.splitext(os.path.basename(prompt_paths[i]))[0]
-            if  video_name in count_vid.keys():
-                grounding_caption = ''
-                gt_count = count_vid[video_name].split()[0]
-                for j in range(len(count_vid[video_name].split())-1):
-                    grounding_caption += (count_vid[video_name].split()[j+1] + ' ')
-                grounding_caption = grounding_caption[:-1]
-                keyword = grounding_caption
-                
-                io_args = {
-                'input_video': os.path.join(dir_videos, f'{video_name}.mp4'),
-                'output_mask_dir': f'../../results/{metric+timestamp}/{keyword}/masks/{video_name}', # save pred masks
-                'original_video': f'../../results/{metric+timestamp}/{keyword}/original_{video_name}.mp4', 
-                'output_video': f'../../results/{metric+timestamp}/{keyword}/mask_{video_name}.mp4', # mask+frame vizualization, mp4 or avi, else the same as input video
-                'output_gif': f'../../results/{metric+timestamp}/{keyword}/gif_{video_name}.gif', # mask visualization
-            }
-                # path = create_directories(io_args['output_mask_dir'])
+            frames, pred_list, det_count_frames = video_detection(io_args, segtracker_args, sam_args, aot_args, grounding_caption, box_threshold, text_threshold, box_size_threshold, reset_image)
+            
+            det_num += 1 
+            det_count_frames = np.array(det_count_frames).astype('float64') 
+            # ipdb.set_trace()
 
-                frames, pred_list, det_count_frames = video_detection(io_args, segtracker_args, sam_args, aot_args, grounding_caption, box_threshold, text_threshold, box_size_threshold, reset_image)
-                
-                det_num += 1 
-                det_count_frames = np.array(det_count_frames).astype('float64') 
-                # ipdb.set_trace()
-
-                det_count_diff_frames = np.array(np.abs(det_count_frames - float(gt_count))) /  float(gt_count) # normalize first
-                det_count_diff_avg = np.sum(det_count_diff_frames) / det_count_diff_frames.shape[0]
-                if det_count_diff_avg > 1:
-                    det_count_diff_avg = 1
-                score = 1- det_count_diff_avg
-            else:
-                score = None
+            det_count_diff_frames = np.array(np.abs(det_count_frames - float(gt_count))) /  float(gt_count) # normalize first
+            det_count_diff_avg = np.sum(det_count_diff_frames) / det_count_diff_frames.shape[0]
+            if det_count_diff_avg > 1:
+                det_count_diff_avg = 1
+            score = 1- det_count_diff_avg
+        else:
+            score = None
 
         # ipdb.set_trace()
         if score is not None and metric != 'detection_score':
@@ -401,5 +333,5 @@ if __name__ == '__main__':
             logger.info(f"Vid: {os.path.basename(prompt_paths[i])},  Current {metric}: {score}, Current avg. {metric}: {average_score},  ")
             
     # Calculate the average SD score across all video-text pairs
-    average_score = sum(scores) / len(scores)
-    logger.info(f"Final average {metric}: {average_score},  Total videos: {len(scores)}")
+    df = pd.DataFrame(results_list)
+    df.to_csv(out_path, sep='\t', index=False)

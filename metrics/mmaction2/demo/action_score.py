@@ -8,6 +8,7 @@ from mmengine import Config, DictAction
 
 from mmaction.apis import inference_recognizer, init_recognizer
 from mmaction.visualization import ActionVisualizer
+import pandas as pd
 
 import os
 import torch
@@ -82,15 +83,13 @@ def get_output(
         target_resolution=target_resolution)
 
 
-def calculate_action_score(video_path, action, action_model, clip_model, clip_tokenizer):
-    target_resolution = None
-    out_filename = None
+def calculate_action_score(video_path, action_model):
     pred_result = inference_recognizer(action_model, video_path)
 
     pred_scores = pred_result.pred_scores.item.tolist()
     score_tuples = tuple(zip(range(len(pred_scores)), pred_scores))
     score_sorted = sorted(score_tuples, key=itemgetter(1), reverse=True)
-    top5_label = score_sorted[:5]
+    top5_label = score_sorted[:1]
 
     label = '../../../metrics/mmaction2/tools/data/kinetics/label_map_k400.txt'
     labels = open(label).readlines()
@@ -105,41 +104,7 @@ def calculate_action_score(video_path, action, action_model, clip_model, clip_to
         action_pred.append(result[0])
         confidence.append(result[1])
 
-    original_text = action
-    action_pred_tokens = clip_tokenizer(action_pred, return_tensors="pt", padding=True, truncation=True)
-    text_tokens = clip_tokenizer(original_text, return_tensors="pt", padding=True, truncation=True)
-    action_pred_input = torch.tensor(action_pred_tokens["input_ids"]).to(device)
-    text_input = torch.tensor(text_tokens["input_ids"].to(device))
-
-    with torch.no_grad():
-        action_pred_features = clip_model.get_text_features(action_pred_input)
-        text_features = clip_model.get_text_features(text_input)
-
-    # Calculate the similarity scores
-    action_pred_features = action_pred_features / action_pred_features.norm(p=2, dim=-1, keepdim=True)
-    text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
-    action_recog_similarities = action_pred_features @ text_features.T
-    action_recog_score = torch.tensor(confidence).unsqueeze(0).float().to(device) @ action_recog_similarities
-
-    if out_filename is not None:
-
-        if target_resolution is not None:
-            if target_resolution[0] == -1:
-                assert isinstance(target_resolution[1], int)
-                assert target_resolution[1] > 0
-            if target_resolution[1] == -1:
-                assert isinstance(target_resolution[0], int)
-                assert target_resolution[0] > 0
-            target_resolution = tuple(target_resolution)
-
-        get_output(
-            video_path,
-            out_filename,
-            pred_result,
-            labels,
-            fps=30,
-            target_resolution=target_resolution)
-    return action_recog_score
+    return action_pred[0], confidence[0]
 
 
 def read_text_file(file_path):
@@ -151,15 +116,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir_videos", type=str, default='', help="Specify the path of generated videos")
     parser.add_argument("--metric", type=str, default='celebrity_id_score', help="Specify the metric to be used")
+    parser.add_argument('--output_path', help='output directory')
     args = parser.parse_args()
 
     dir_videos = args.dir_videos
     metric = args.metric
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)    
+    out_path = args.output_path + '/{}.tsv'.format(metric)
 
-    dir_prompts =  '../../../prompts/'
    
     video_paths = [os.path.join(dir_videos, x) for x in os.listdir(dir_videos)]
-    prompt_paths = [os.path.join(dir_prompts, os.path.splitext(os.path.basename(x))[0]+'.txt') for x in video_paths]
 
      # Create the directory if it doesn't exist
     timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -183,8 +150,8 @@ if __name__ == '__main__':
 
     # Load pretrained models
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    clip_model = CLIPModel.from_pretrained("../../../checkpoints/clip-vit-base-patch32").to(device)
-    clip_tokenizer = AutoTokenizer.from_pretrained("../../../checkpoints/clip-vit-base-patch32")
+    clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+    clip_tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
 
     # action_model 
     config = '../../../metrics/mmaction2/configs/recognition/videomaev2/vit-base-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400.py'
@@ -193,69 +160,33 @@ if __name__ == '__main__':
     # Build the recognizer from a config file and checkpoint file/url
     action_model = init_recognizer(cfg, checkpoint, device=device)
     # get the videos' basenames list action_vid  for recognition
-    import json
     # Load the JSON data from the file
-    with open("../../../metadata.json", "r") as infile:
-        data = json.load(infile)
-    # Extract the dictionaries
-    face_vid = {}
-    text_vid = {}
-    color_vid = {}
-    count_vid = {}
-    amp_vid = {}
-    action_vid = {}
-    for item_key, item_value in data.items():
-        attributes = item_value["attributes"]
-        face = attributes.get("face", "")
-        text = attributes.get("text", "")
-        color = attributes.get("color", "")
-        count = attributes.get("count", "")
-        amp = attributes.get("amp", "")
-        action = attributes.get("action", "")
-        if face:
-            face_vid[item_key] = face
-        if text:
-            text_vid[item_key] = text
-        if color:
-            color_vid[item_key] = color
-        if count:
-            count_vid[item_key] = count
-        if amp:
-            amp_vid[item_key] = amp
-        if action:
-            action_vid[item_key] = action
 
     # Calculate SD scores for all video-text pairs
     scores = []
-    
-    test_num = 10
-    test_num = len(video_paths)
-    count = 0
+    results_list = []
+
     for i in tqdm(range(len(video_paths))):
         video_path = video_paths[i]
-        prompt_path = prompt_paths[i]
-        if count == test_num:
-            break
-        else:
-            text = read_text_file(prompt_path)
-            # get the videos' basenames list action_vid  for recognition
-            basename = os.path.basename(video_path)[:4]
-            if  basename in action_vid.keys():
-                score = calculate_action_score(video_path, action_vid[os.path.basename(video_path)[:4]], action_model, clip_model, clip_tokenizer)
-                score = score[0][0]
-            else:
-                score = None
-            if score is not None:
-                scores.append(score)
-                count+=1                                                
-                average_score = sum(scores) / len(scores)
-                logging.info(f"Vid: {os.path.basename(video_path)[:4]},  Current {metric}: {score}, Current avg. {metric}: {average_score}")
+        # get the videos' basenames list action_vid  for recognition
+        basename = os.path.basename(video_path)[:4]
+        act, score = calculate_action_score(video_path, action_model)
+        print(act, score)
+        if score is not None:
+            scores.append(score)
+            average_score = sum(scores) / len(scores)
+            logging.info(f"Vid: {os.path.basename(video_path)[:4]},  Current {metric}: {score}, Current avg. {metric}: {average_score}")
                 # wandb.log({
                 #     f"Current {metric}": score,
                 #     f"Average {metric}": average_score,
                 # })
             
-    # Calculate the average SD score across all video-text pairs
-    average_score = sum(scores) / len(scores)
-    logging.info(f"Final average {metric}: {average_score}, Total videos: {len(scores)}")
+            results_list.append({
+                "video_path": video_path.split("/")[-1],
+                "{}_score".format(metric): score,
+                'action_pred': act
+            })
 
+    # Calculate the average SD score across all video-text pairs
+    df = pd.DataFrame(results_list)
+    df.to_csv(out_path, sep='\t', index=False)
