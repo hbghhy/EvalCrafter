@@ -372,7 +372,7 @@ if __name__ == '__main__':
         logging.info(f"Vid: {os.path.basename(video_path)},  Current {metric}: {score}, Current avg. {metric}: {average_score},  ")
         results_list.append({
             "video_path": video_path.split("/")[-1],
-            "{}_score".format(metric): score,
+            "{}".format(metric): score,
         })
     # Calculate the average SD score across all video-text pairs
     df = pd.DataFrame(results_list)

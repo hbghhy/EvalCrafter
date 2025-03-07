@@ -54,10 +54,10 @@ cd $EC_path
 cd ./metrics/Scores_with_CLIP 
 python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'blip_bleu' --output_path $eval_result_dir
 
-# # CLIP-Temp 
-# cd $EC_path
-# cd ./metrics/Scores_with_CLIP 
-# python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'clip_temp_score'
+# CLIP-Temp 
+cd $EC_path
+cd ./metrics/Scores_with_CLIP 
+python3 Scores_with_CLIP.py --dir_videos $dir_videos --metric 'clip_temp_score' --output_path $eval_result_dir
 # --
 
 # # Action Score
