@@ -183,7 +183,7 @@ if __name__ == '__main__':
             
             results_list.append({
                 "video_path": video_path.split("/")[-1],
-                "{}_score".format(metric): score,
+                "{}".format(metric): score,
                 'action_pred': act
             })
 

@@ -19,7 +19,7 @@ def merge_tsv_files(tsv_files):
 def post_process(merged_df):
     quality_weights = np.array([0.03004555, 0.02887537])*5
     quality_intercept = 0.08707462696457707*5
-    quality = merged_df['aesthetic_score'] * quality_weights[0] + merged_df['technical_score'] * quality_weights[1] + quality_intercept
+    quality = merged_df['aesthetic_score'] * quality_weights[0]/ 100 + merged_df['technical_score'] * quality_weights[1]/ 100 + quality_intercept
     merged_df['quality_score'] = quality * 100
 
     temporal_weights = np.array([2.92492244, 0.45475678, 0.17561504])*5
