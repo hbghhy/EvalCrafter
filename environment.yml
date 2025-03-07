@@ -78,8 +78,6 @@ dependencies:
       - deprecated
       - gdown
       - decord
-      - pybind11
-      - fastwer
       - cer
       - mmaction2==1.1.0       
       - supervision==0.6.0  
