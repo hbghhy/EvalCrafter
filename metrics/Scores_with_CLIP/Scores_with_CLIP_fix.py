@@ -291,7 +291,7 @@ if __name__ == '__main__':
 
    
     video_paths = [os.path.join(dir_videos, x) for x in os.listdir(dir_videos)]
-    prompts_df = pd.read_csv(args.prompt_file, sep='\t', names=['prompt', 'video_gen_id'], lineterminator='\n')
+    prompts_df = pd.read_csv(args.prompt_file, sep='\t', names=['prompt', 'video_gen_id'])
      # Create the directory if it doesn't exist
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     os.makedirs(f"../../results", exist_ok=True)
