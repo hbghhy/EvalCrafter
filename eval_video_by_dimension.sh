@@ -36,7 +36,7 @@ fi
 if [[ " ${dimension_array[@]} " =~ " CLIP-Score " ]]; then
     echo "Running CLIP-Score..."
     cd $EC_path
-    cd ./metrics/Scores_with_CLIP_fix
+    cd ./metrics/Scores_with_CLIP
     run_command python3 Scores_with_CLIP_fix.py --dir_videos $dir_videos --metric 'clip_score' --output_path $eval_result_dir --prompt_file $prompt_dir
 fi
 
@@ -44,7 +44,7 @@ fi
 if [[ " ${dimension_array[@]} " =~ " Face-Consistency " ]]; then
     echo "Running Face Consistency..."
     cd $EC_path
-    cd ./metrics/Scores_with_CLIP_fix
+    cd ./metrics/Scores_with_CLIP
     run_command python3 Scores_with_CLIP_fix.py --dir_videos $dir_videos --metric 'face_consistency_score' --output_path $eval_result_dir --prompt_file $prompt_dir
 fi
 
@@ -52,7 +52,7 @@ fi
 if [[ " ${dimension_array[@]} " =~ " SD-Score " ]]; then
     echo "Running SD-Score..."
     cd $EC_path
-    cd ./metrics/Scores_with_CLIP_fix
+    cd ./metrics/Scores_with_CLIP
     run_command python3 Scores_with_CLIP_fix.py --dir_videos $dir_videos --metric 'sd_score' --output_path $eval_result_dir --prompt_file $prompt_dir
 fi
 
@@ -60,7 +60,7 @@ fi
 if [[ " ${dimension_array[@]} " =~ " BLIP-BLUE " ]]; then
     echo "Running BLIP-BLUE..."
     cd $EC_path
-    cd ./metrics/Scores_with_CLIP_fix
+    cd ./metrics/Scores_with_CLIP
     run_command python3 Scores_with_CLIP_fix.py --dir_videos $dir_videos --metric 'blip_bleu' --output_path $eval_result_dir --prompt_file $prompt_dir
 fi
 
@@ -68,7 +68,7 @@ fi
 if [[ " ${dimension_array[@]} " =~ " CLIP-Temp " ]]; then
     echo "Running CLIP-Temp..."
     cd $EC_path
-    cd ./metrics/Scores_with_CLIP_fix
+    cd ./metrics/Scores_with_CLIP
     run_command python3 Scores_with_CLIP_fix.py --dir_videos $dir_videos --metric 'clip_temp_score' --output_path $eval_result_dir --prompt_file $prompt_dir
 fi
 
