@@ -77,7 +77,7 @@ if [[ " ${dimension_array[@]} " =~ " Action-Score " ]]; then
     echo "Running Action Score..."
     cd $EC_path
     cd ./metrics/mmaction2/demo
-    run_command python3 action_score.py --dir_videos $dir_videos --metric 'action_score' --output_path $eval_result_dir
+    run_command python3 action_score_fix.py --dir_videos $dir_videos --metric 'action_score' --output_path $eval_result_dir
 fi
 
 # Flow-Score
