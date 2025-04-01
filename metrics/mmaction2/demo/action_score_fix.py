@@ -177,7 +177,7 @@ if __name__ == '__main__':
         if score is not None:
             scores.append(score)
             average_score = sum(scores) / len(scores)
-            logging.info(f"Vid: {os.path.basename(video_path)[:4]},  Current {metric}: {score}, Current avg. {metric}: {average_score}")
+            logging.info(f"Vid: {video_gen_id},  Current {metric}: {score}, Current avg. {metric}: {average_score}")
                 # wandb.log({
                 #     f"Current {metric}": score,
                 #     f"Average {metric}": average_score,

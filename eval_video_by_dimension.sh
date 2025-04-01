@@ -85,7 +85,7 @@ if [[ " ${dimension_array[@]} " =~ " Flow-Score " ]]; then
     echo "Running Flow-Score..."
     cd $EC_path
     cd ./metrics/RAFT
-    run_command python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'flow_score' --output_path $eval_result_dir
+    run_command python3 optical_flow_scores_fix.py --dir_videos $dir_videos --metric 'flow_score' --output_path $eval_result_dir
 fi
 
 # Warping Error
@@ -93,7 +93,7 @@ if [[ " ${dimension_array[@]} " =~ " Warping-Error " ]]; then
     echo "Running Warping Error..."
     cd $EC_path
     cd ./metrics/RAFT
-    run_command python3 optical_flow_scores.py --dir_videos $dir_videos --metric 'warping_error' --output_path $eval_result_dir
+    run_command python3 optical_flow_scores_fix.py --dir_videos $dir_videos --metric 'warping_error' --output_path $eval_result_dir
 fi
 
 echo "Evaluation script completed successfully."
